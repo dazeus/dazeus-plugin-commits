@@ -1,0 +1,57 @@
+#!/usr/bin/perl
+# 1. make sure these configuration settings are OK:
+my $GITBIN = "git";
+my $UDP_HOST = "localhost";
+my $UDP_PORT = 4482;
+# 2. Run dazeus-plugin-commits, let it connect to your DaZeus instance.
+# 3. Install this file as a post-commit hook for all repositories you want to
+# be monitored.
+#
+# No modifications should be necessary below this line.
+
+use IO::Socket::INET;
+
+foreach(@ARGV) {
+	warn "Unused argument: $_\n";
+}
+
+while(<STDIN>) {
+	my ($oldrev, $newrev, $refname) = /^(\w+) (\w+) (.+)$/;
+
+	my @pushed_commits = split /\n/, `$GITBIN rev-list --no-merges $oldrev...$newrev`;
+
+	foreach my $rev (@pushed_commits) {
+		# Modified from: https://gist.github.com/1306223 (textarcana)
+		my $json = `$GITBIN log -1 --pretty=format:'{%n  \"id\": \"%H\",%n  \"author\": \"%an <%ae>\",%n  \"date\": \"%ad\",%n  \"message\": \"%s\",' $rev`;
+		my $body = `$GITBIN log -1 --pretty=format:'%b' $rev`;
+		
+		my @numstat = split /\n/, `$GITBIN log -1 --pretty=format:'' --numstat -1 $rev`;
+		shift @numstat;
+		my @changedfiles = map { /^\d+\s+\d+\s+(.+)$/; safe_json($1) } @numstat;
+		$json .= "\n  \"body\": \"" . safe_json($body) . "\",";
+		$json .= "\n  \"ref\": \"" . safe_json($refname) . "\",";
+		$json .= "\n  \"changed\": [\"" . join('", "', @changedfiles) . "\"]";
+		$json .= "\n}";
+
+		eval {
+			my $s = IO::Socket::INET->new(
+				PeerAddr => $UDP_HOST,
+				PeerPort => $UDP_PORT,
+				Proto => "udp",
+				Type => SOCK_DGRAM,
+			) || die $!;
+			print $s $json;
+			close $s;
+		};
+		if($@) {
+			warn "Failed to notify DaZeus: $@\n";
+		}
+	}
+}
+
+sub safe_json {
+	$_ = shift;
+	s/\\/\\\\/g;
+	s/"/\\"/g;
+	return $_;
+}
