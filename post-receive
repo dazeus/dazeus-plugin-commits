@@ -22,12 +22,14 @@ while(<STDIN>) {
 
 	foreach my $rev (@pushed_commits) {
 		# Modified from: https://gist.github.com/1306223 (textarcana)
-		my $json = `$GITBIN log -1 --pretty=format:'{%n  \"id\": \"%H\",%n  \"author\": \"%an <%ae>\",%n  \"date\": \"%ad\",%n  \"message\": \"%s\",' $rev`;
+		my $json = `$GITBIN log -1 --pretty=format:'{%n  \"id\": \"%H\",%n  \"author\": \"%an <%ae>\",%n  \"date\": \"%ad\",' $rev`;
+		my $message = `$GITBIN log -1 --pretty=format:'%s' $rev`;
 		my $body = `$GITBIN log -1 --pretty=format:'%b' $rev`;
 		
 		my @numstat = split /\n/, `$GITBIN log -1 --pretty=format:'' --numstat -1 $rev`;
 		shift @numstat;
 		my @changedfiles = map { /^\d+\s+\d+\s+(.+)$/; safe_json($1) } @numstat;
+		$json .= "\n  \"message\": \"" . safe_json($message) . "\",";
 		$json .= "\n  \"body\": \"" . safe_json($body) . "\",";
 		$json .= "\n  \"ref\": \"" . safe_json($refname) . "\",";
 		$json .= "\n  \"changed\": [\"" . join('", "', @changedfiles) . "\"]";
