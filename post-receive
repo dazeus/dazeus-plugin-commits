@@ -20,6 +20,13 @@ while(<STDIN>) {
 
 	my @pushed_commits = reverse split /\n/, `$GITBIN rev-list --no-merges $oldrev...$newrev`;
 
+	my $channel;
+	my ($shortref) = $refname =~ /^refs\/heads\/([a-zA-Z0-9\-_]+)$/;
+	if($shortref) {
+		$channel = `$GITBIN show $shortref:.dazeus-channel 2>/dev/null`;
+		1 while $channel && chomp $channel;
+	}
+
 	foreach my $rev (@pushed_commits) {
 		# Modified from: https://gist.github.com/1306223 (textarcana)
 		my $json = `$GITBIN log -1 --pretty=format:'{%n  \"id\": \"%H\",%n  \"author\": \"%an <%ae>\",%n  \"date\": \"%ad\",' $rev`;
@@ -32,6 +39,12 @@ while(<STDIN>) {
 		$json .= "\n  \"message\": \"" . safe_json($message) . "\",";
 		$json .= "\n  \"body\": \"" . safe_json($body) . "\",";
 		$json .= "\n  \"ref\": \"" . safe_json($refname) . "\",";
+		if($channel) {
+			$json .= "\n  \"channel\": \"" . safe_json($channel) . "\",";
+		}
+		if($shortref) {
+			$json .= "\n  \"shortref\": \"" . safe_json($shortref) . "\",";
+		}
 		$json .= "\n  \"changed\": [\"" . join('", "', @changedfiles) . "\"]";
 		$json .= "\n}";
 
