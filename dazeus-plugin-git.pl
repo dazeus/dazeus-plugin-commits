@@ -15,7 +15,17 @@ if(@ARGV > 1 && $ARGV[0] eq "--short") {
 
 my ($sourcehost, $listenport, $socket, $network, $channel) = @ARGV;
 if(!$channel) {
-	die "Usage: $0 [--short] sourcehost listenport socket network channel\n";
+	warn <<"USAGE";
+Usage: $0 [--short] sourcehost listenport socket network ( channel | '--auto' )
+
+If --auto is given as the channel name, the channel in the received UDP message
+will be used. If none is given, the received message is discarded.
+USAGE
+	exit 1;
+}
+
+if($channel eq "--auto") {
+	undef $channel;
 }
 
 my $dazeus = DaZeus->connect($socket);
@@ -32,7 +42,7 @@ if(!$joined) {
 	exit;
 }
 
-print "Sending to $channel on network $network.\n";
+print "Sending to " . ($channel ? $channel : "message-specified channel") . " on network $network.\n";
 
 my $listen = IO::Socket::INET->new(
 	Proto => "udp",
@@ -71,6 +81,7 @@ while(my $sender = $listen->recv($data, 1024)) {
 	my $fullauthor = $data->{'author'};
 	my ($author, $email) = $fullauthor =~ /^([^<]+) <(.+)>$/;
 	my $message = $data->{'message'};
+	my $this_channel = $data->{'channel'};
 	my $ref = $data->{'ref'};
 	next if($ref !~ m#^refs/heads/(.+)$#);
 	$ref = $1;
@@ -94,8 +105,18 @@ while(my $sender = $listen->recv($data, 1024)) {
 
 	print "$data\n-----\n";
 
+	# If channel is set, use it; otherwise, use the channel from the UDP message
+	if($channel) {
+		$this_channel = $channel;
+	}
+
+	# If neither are set, discard message
+	if(!$this_channel) {
+		next;
+	}
+
 	eval {
-		$dazeus->message($network, $channel, $data);
+		$dazeus->message($network, $this_channel, $data);
 	};
 	if( $@ )
 	{
