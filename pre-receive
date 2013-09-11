@@ -18,7 +18,7 @@ foreach(@ARGV) {
 while(<STDIN>) {
 	my ($oldrev, $newrev, $refname) = /^(\w+) (\w+) (.+)$/;
 
-	my @pushed_commits = reverse split /\n/, `$GITBIN rev-list --no-merges $oldrev...$newrev`;
+	my @pushed_commits = split /\n/, `$GITBIN rev-list --reverse --no-merges $newrev --not --all`;
 
 	my $channel;
 	my ($shortref) = $refname =~ /^refs\/heads\/([a-zA-Z0-9\-_]+)$/;
