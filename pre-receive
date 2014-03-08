@@ -10,6 +10,8 @@ my $UDP_PORT = 4482;
 # No modifications should be necessary below this line.
 
 use IO::Socket::INET;
+use Cwd;
+use File::Basename;
 
 foreach(@ARGV) {
 	warn "Unused argument: $_\n";
@@ -19,6 +21,8 @@ while(<STDIN>) {
 	my ($oldrev, $newrev, $refname) = /^(\w+) (\w+) (.+)$/;
 
 	my @pushed_commits = split /\n/, `$GITBIN rev-list --reverse --no-merges $newrev --not --all`;
+
+	my $reponame = basename(cwd());
 
 	my $channel;
 	my ($shortref) = $refname =~ /^refs\/heads\/([a-zA-Z0-9\-_]+)$/;
@@ -38,6 +42,7 @@ while(<STDIN>) {
 		my @changedfiles = map { /^\d+\s+\d+\s+(.+)$/; safe_json($1) } @numstat;
 		$json .= "\n  \"message\": \"" . safe_json($message) . "\",";
 		$json .= "\n  \"body\": \"" . safe_json($body) . "\",";
+		$json .= "\n  \"reponame\": \"" . safe_json($reponame) . "\",";
 		$json .= "\n  \"ref\": \"" . safe_json($refname) . "\",";
 		if($channel) {
 			$json .= "\n  \"channel\": \"" . safe_json($channel) . "\",";

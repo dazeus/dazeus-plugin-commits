@@ -82,6 +82,8 @@ while(my $sender = $listen->recv($data, 1024)) {
 	my ($author, $email) = $fullauthor =~ /^([^<]+) <(.+)>$/;
 	my $message = $data->{'message'};
 	my $this_channel = $data->{'channel'};
+	my $repo = $data->{'reponame'};
+	$repo =~ s/.git$//;
 	my $ref = $data->{'ref'};
 	next if($ref !~ m#^refs/heads/(.+)$#);
 	$ref = $1;
@@ -96,9 +98,9 @@ while(my $sender = $listen->recv($data, 1024)) {
 	my $shortlog = join "\n", @shortlog;
 
 	if($short) {
-		$data = "$author r${rev}${branchdescr} - $filechanged - $summary";
+		$data = "[$repo] $author r${rev}${branchdescr} - $filechanged - $summary";
 	} else {
-		$data = "$fullauthor r${rev}${branchdescr} - $filechanged:\n";
+		$data = "[$repo] $fullauthor r${rev}${branchdescr} - $filechanged:\n";
 		$data .= "$summary\n";
 		$data .= $shortlog;
 	}
